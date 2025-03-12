@@ -1,8 +1,9 @@
-
-
 const myModal = new bootstrap.Modal("#register-modal");
 let logged = sessionStorage.getItem ("logged");
 const session = localStorage.getItem ("session");
+let data = {
+    transactions: []
+};
 
 checkLogged();
 
@@ -14,23 +15,20 @@ document.getElementById("login-form").addEventListener("submit", function(e){
     const password = document.getElementById("password-input").value;
     const checkSession = document.getElementById("session-check").checked;
 
-    const account = getAccount(email);
-    
-    if(!account) {
-        alert("Ops verique seu usuário ou senha!");
-        return;
-    }
-
-    if(account) {
-        if(account.password !== password) {
-            alert("Ops verique seu usuário ou senha!");
-            return;
-    }
-    saveSession(email, checkSession)
+// Faz uma requisição a um usuarío com um ID expecifico
+axios.post('http://localhost:3333/login', {
+    login: email,
+    password: password
+    })
+  .then(function (response) {
+    // manipula o sucesso da requisição
+    console.log(response);
+    saveSession({email, password}, checkSession)
     window.location.href = "home.html";
-
-    }
-
+    })
+  .catch(function (error) {
+    alert(error.response.data.msg);
+  })
 });
 //CRIAR CONTA
 document.getElementById("create-form").addEventListener("submit", function(e){
@@ -50,14 +48,22 @@ document.getElementById("create-form").addEventListener("submit", function(e){
         return;
     }
 
-    saveAccount({
+    axios.post('http://localhost:3333/users', {
         login: email,
-        password: password,
-        transactions: []
-    });
+        password: password
+        })
+      .then(function (response) {
+        // manipula o sucesso da requisição
+        console.log(response);
+        myModal.hide();
 
-    myModal.hide();
-    alert("Conta criada com sucesso!")
+        alert(response.data.msg);
+        })
+        
+      .catch(function (error) {
+        alert(error.response.data.msg);
+
+      })
 })
 
 function checkLogged() {
@@ -74,23 +80,12 @@ function checkLogged() {
 
 function saveAccount(data){
     localStorage.setItem(data.login, JSON.stringify(data));
-
 }
 
 function saveSession(data, saveSession){
     if(saveSession) {
-        localStorage.setItem("session", data);
+        localStorage.setItem("session", JSON.stringify(data));
     }
-    sessionStorage.setItem("logged", data)
+    sessionStorage.setItem("logged", JSON.stringify(data))
 }
    
-function getAccount(key){
-    const  account = localStorage.getItem(key);
-
-    if (account) {
-        return JSON.parse(account);
-    
-    }
-
-    return "";
-}

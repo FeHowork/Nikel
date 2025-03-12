@@ -9,6 +9,18 @@ let data = {
 
 document.getElementById("button-logout").addEventListener("click", logout);
 
+function userHeader() {
+    let userHeader = null;
+    if(logged) {
+        const user = JSON.parse(logged);
+        userHeader = {'user': user.email, 'password': user.password};
+    } else {
+        const user = JSON.parse(session);
+        userHeader = {'user': user.email, 'password': user.password};
+    }
+    return userHeader;
+};
+
 function logout () {
     sessionStorage.removeItem("logged");
 
@@ -26,19 +38,72 @@ document.getElementById("transactions-modal").addEventListener("submit", functio
     const date = document.getElementById("date-input").value;
     const type = document.querySelector('input[name="type-input"]:checked').value;
 
-    data.transactions.unshift({
-        value: value, type: type, description: description, date: date
-    });
 
-    saveData(data);
+
+    axios.post('http://localhost:3333/transactions', {
+        value: value,
+        description: description,
+        date: date,
+        type: Number(type)
+    }, {
+        headers:userHeader(),
+    })
+  .then(function (response) {
+    // manipula o sucesso da requisição
+    console.log(response);
     e.target.reset();
     myModal.hide();
 
+    alert(response.data.msg);
+
     getTransactions();
-
-    alert("Lançamento adicionado com sucesso!");
-
+  })
+  .catch(function (error) {
+    // manipula erros da requisição
+    alert(error.response.data.msg);
+  })
 });
+
+function getTransactions() {
+    axios.get('http://localhost:3333/transactions', {
+        headers:userHeader(),
+    })
+  .then(function (response) {
+    // manipula o sucesso da requisição
+    console.log(response);
+
+    data.transactions = response.data.data;
+
+    let transactionsHtml = ``;
+
+    if (data.transactions.length) {
+        data.transactions.forEach((item) => {
+            let type = "Entrada";
+
+            if(item.type === 2) {
+                type = "Saída"
+            }
+
+            transactionsHtml += `
+            <tr>
+                <th scope="row">${item.date}</th>
+                <td>R$ ${item.value}</td>
+                <td>${type}</td>
+                <td>${item.description}</td>
+            </tr>
+            `
+        })
+    }
+    document.getElementById("transactions-list").innerHTML = transactionsHtml;
+})
+  .catch(function (error) {
+    // manipula erros da requisição
+    alert(error.response.data.msg);
+    })
+}
+
+
+
 
 checkLogged();
 
@@ -58,31 +123,3 @@ function checkLogged() {
     getTransactions();
 }
 
-function saveData(data) {
-    localStorage.setItem(data.login, JSON.stringify(data));
-}
-
-function getTransactions() {
-    const transactions = data.transactions;
-    let transactionsHtml = ``;
-
-    if (transactions.length) {
-        transactions.forEach((item) => {
-            let type = "Entrada";
-
-            if(item.type === "2") {
-                type = "Saída"
-            }
-
-            transactionsHtml += `
-            <tr>
-                <th scope="row">${item.date}</th>
-                <td>R$ ${item.value.toFixed(2)}</td>
-                <td>${type}</td>
-                <td>${item.description}</td>
-            </tr>
-            `
-        })
-    }
-    document.getElementById("transactions-list").innerHTML = transactionsHtml;
-}

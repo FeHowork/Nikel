@@ -7,8 +7,19 @@ let data = {
     transactions: []
 };
 
-
 document.getElementById("button-logout").addEventListener("click", logout);
+
+function userHeader() {
+    let userHeader = null;
+    if(logged) {
+        const user = JSON.parse(logged);
+        userHeader = {'user': user.email, 'password': user.password};
+    } else {
+        const user = JSON.parse(session);
+        userHeader = {'user': user.email, 'password': user.password};
+    }
+    return userHeader;
+};
 
 //ADICIONAR LANÇAMENTO
 document.getElementById("transactions-modal").addEventListener("submit", function(e) {
@@ -19,28 +30,56 @@ document.getElementById("transactions-modal").addEventListener("submit", functio
     const date = document.getElementById("date-input").value;
     const type = document.querySelector('input[name="type-input"]:checked').value;
 
-    data.transactions.unshift({
-        value: value, type: type, description: description, date: date
-    });
 
-    saveData(data);
+
+    axios.post('http://localhost:3333/transactions', {
+        value: value,
+        description: description,
+        date: date,
+        type: Number(type)
+    }, {
+        headers:userHeader(),
+    })
+  .then(function (response) {
+    // manipula o sucesso da requisição
+    console.log(response);
     e.target.reset();
     myModal.hide();
 
-    getCashIn();
-    getCashOut();
-    getTotal();
+    alert(response.data.msg);
 
-    alert("Lançamento adicionado com sucesso!");
-
-    
-
+    getTransactions();
+  })
+  .catch(function (error) {
+    // manipula erros da requisição
+    alert(error.response.data.msg);
+  })
 });
+
+
 
 checkLogged();
 
+// function checkLogged() {
+//     if(session) {
+//         sessionStorage.setItem("logged", session);
+//         logged = session;
+//     }
+//     if (!logged) {
+//         window.location.href = "index.html";
+//         return;
+//     }
+//     const dataUser = localStorage.getItem(logged);
+//     if(dataUser) {
+//         data = JSON.parse(dataUser);
+//     }
+    
+//     getTransactions();
+
+// }
+
 function checkLogged() {
-    if(session) {
+    if (session) {
         sessionStorage.setItem("logged", session);
         logged = session;
     }
@@ -48,16 +87,17 @@ function checkLogged() {
         window.location.href = "index.html";
         return;
     }
-    const dataUser = localStorage.getItem(logged);
-    if(dataUser) {
+
+    const user = JSON.parse(logged);
+    const dataUser = localStorage.getItem(user.email); // Busca dados do usuário específico
+
+    if (dataUser) {
         data = JSON.parse(dataUser);
     }
-    
-    getCashIn();
-    getCashOut();
-    getTotal();
 
+    getTransactions();
 }
+
 
 
 function logout () {
@@ -68,14 +108,41 @@ function logout () {
     window.location.href = "index.html"
 }
 
+// function saveData(data) {
+//     localStorage.setItem(data.login, JSON.stringify(data));
+// }
+
 function saveData(data) {
-    localStorage.setItem(data.login, JSON.stringify(data));
+    const user = JSON.parse(logged); 
+    localStorage.setItem(user.email, JSON.stringify(data));
 }
 
+
+
+function getTransactions() {
+    axios.get('http://localhost:3333/transactions', {
+        headers:userHeader(),
+    })
+  .then(function (response) {
+    // manipula o sucesso da requisição
+    console.log(response);
+
+    data.transactions = response.data.data;
+
+    getCashIn();
+    getCashOut();
+    getTotal();
+
+  })
+  .catch(function (error) {
+    // manipula erros da requisição
+    alert(error.response.data.msg);
+  })
+}
 function getCashIn() {
     const transactions = data.transactions
 
-    const cashIn = transactions.filter((item) => item.type ==="1");
+    const cashIn = transactions.filter((item) => item.type ===1);
 
     if(cashIn.length) {
         let cashInHtml =``;
@@ -91,7 +158,7 @@ function getCashIn() {
             cashInHtml += `          
                 <div class="row mb-4">
                     <div class="col-12">
-                        <h3 class="fs-2">R$ ${cashIn[index].value.toFixed(2)}</h3>
+                        <h3 class="fs-2">R$ ${cashIn[index].value}</h3>
                         <div class="container p-0">
                             <div class="row">
                                 <div class="col-12 col-md-8">
@@ -112,7 +179,7 @@ function getCashIn() {
 function getCashOut() {
     const transactions = data.transactions
 
-    const cashIn = transactions.filter((item) => item.type ==="2");
+    const cashIn = transactions.filter((item) => item.type ===2);
 
     if(cashIn.length) {
         let cashInHtml =``;
@@ -128,7 +195,7 @@ function getCashOut() {
             cashInHtml += `          
                 <div class="row mb-4">
                     <div class="col-12">
-                        <h3 class="fs-2">R$ ${cashIn[index].value.toFixed(2)}</h3>
+                        <h3 class="fs-2">R$ ${cashIn[index].value}</h3>
                         <div class="container p-0">
                             <div class="row">
                                 <div class="col-12 col-md-8">
@@ -152,10 +219,10 @@ function getTotal() {
     let total = 0;
 
     transactions.forEach((item) => {
-        if(item.type === "1") {
-            total += item.value
+        if(item.type === 1) {
+            total += Number(item.value)
         } else {
-            total -= item.value;
+            total -= Number(item.value);
         }
     });
     document.getElementById("total").innerHTML = `R$ ${total.toFixed(2)}`; 
